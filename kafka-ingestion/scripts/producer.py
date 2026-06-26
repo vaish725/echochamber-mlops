@@ -1,19 +1,22 @@
-import time
 import json
+import os
+import time
+
 from faker import Faker
 from kafka import KafkaProducer
 
-# Initialize Faker to generate fake data
 fake = Faker()
 
-# Function to serialize data to JSON
+_bootstrap = os.environ.get("KAFKA_BOOTSTRAP_SERVERS", "localhost:9092")
+
+
 def json_serializer(data):
     return json.dumps(data).encode("utf-8")
 
-# Initialize Kafka Producer
+
 producer = KafkaProducer(
-    bootstrap_servers=['localhost:9092'],
-    value_serializer=json_serializer
+    bootstrap_servers=[_bootstrap],
+    value_serializer=json_serializer,
 )
 
 if __name__ == "__main__":
