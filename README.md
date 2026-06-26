@@ -27,7 +27,7 @@ A real-time misinformation detection platform that ingests social media posts vi
 | Folder | Description | Status |
 |--------|-------------|--------|
 | `kafka-ingestion/` | Kafka producer + consumer + docker-compose | ✅ Complete |
-| `detection-service/` | FastAPI LLM classifier (Claude) | 🔲 Next |
+| `detection-service/` | FastAPI LLM classifier (Claude) | ✅ Complete |
 | `storage-sink/` | PostgreSQL + S3/MinIO writer | 🔲 Planned |
 | `mlflow/` | Experiment tracking + model registry | 🔲 Planned |
 | `k8s/` | Kubernetes manifests | 🔲 Planned |
@@ -70,4 +70,11 @@ See `.env.example` for all required variables and their defaults.
 
 ## Project Status
 
-See `prd.md` (gitignored) for the full Product Requirements Document and roadmap.
+| Phase | Description | Status |
+|-------|-------------|--------|
+| 1 | Kafka ingestion pipeline | ✅ Complete |
+| 2 | LLM detection service (Claude) | ✅ Complete |
+| 3 | Persistent storage (PostgreSQL + S3/MinIO) | 🔲 Planned |
+| 4 | MLOps: MLflow + GitHub Actions CI/CD | 🔲 Planned |
+| 5 | Kubernetes deployment | 🔲 Planned |
+| 6 | Observability: Prometheus, Grafana, Loki | 🔲 Planned |
