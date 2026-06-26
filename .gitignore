@@ -1,6 +1,8 @@
-   echo "venv/
-   __pycache__/
-   *.pyc
-   .env
-   .DS_Store
-   *.log" > .gitignore
+venv/
+__pycache__/
+*.pyc
+.env
+.DS_Store
+*.log
+prd.md
+.claude/
