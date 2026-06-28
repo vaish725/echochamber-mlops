@@ -3,7 +3,7 @@ import logging
 import time
 from pathlib import Path
 
-from anthropic import APIConnectionError, APITimeoutError, AsyncAnthropic, InternalServerError
+from openai import APIConnectionError, APITimeoutError, AsyncOpenAI, InternalServerError
 from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
 
 from app.config import Settings
@@ -21,12 +21,12 @@ def _load_prompt(version: str) -> str:
 
 class MisinformationDetector:
     def __init__(self, settings: Settings) -> None:
-        self._client = AsyncAnthropic(api_key=settings.anthropic_api_key)
+        self._client = AsyncOpenAI(api_key=settings.openai_api_key)
         self._model = settings.llm_model
         self._prompt_version = settings.prompt_version
         self._system_prompt = _load_prompt(settings.prompt_version)
 
-    # Only retry on transient network/server errors — not on refusals or parse failures
+    # Only retry on transient network/server errors
     @retry(
         retry=retry_if_exception_type((APIConnectionError, APITimeoutError, InternalServerError)),
         stop=stop_after_attempt(3),
@@ -34,30 +34,27 @@ class MisinformationDetector:
         reraise=True,
     )
     async def _call_llm(self, post_text: str) -> LLMClassification:
-        response = await self._client.messages.create(
+        response = await self._client.chat.completions.create(
             model=self._model,
+            messages=[
+                {"role": "system", "content": self._system_prompt},
+                {
+                    "role": "user",
+                    "content": f"Classify this social media post:\n\n<post>\n{post_text}\n</post>",
+                },
+            ],
             max_tokens=512,
-            system=self._system_prompt,
-            messages=[{
-                "role": "user",
-                "content": f"Classify this social media post:\n\n<post>\n{post_text}\n</post>",
-            }],
+            response_format={"type": "json_object"},
         )
-        if response.stop_reason == "refusal":
-            logger.warning("Claude declined to classify post — returning UNCERTAIN", extra={"post_snippet": post_text[:80]})
+        choice = response.choices[0]
+        if choice.finish_reason == "content_filter":
+            logger.warning("OpenAI content filter triggered — returning UNCERTAIN", extra={"post_snippet": post_text[:80]})
             return LLMClassification(
                 label=MisinformationLabel.UNCERTAIN,
                 confidence=0.0,
                 reasoning="Classification declined by content safety system.",
             )
-        text_blocks = [b for b in response.content if b.type == "text"]
-        if not text_blocks:
-            raise ValueError(
-                f"No text block in response "
-                f"(stop_reason={response.stop_reason}, "
-                f"block_types={[b.type for b in response.content]})"
-            )
-        return LLMClassification(**json.loads(text_blocks[0].text))
+        return LLMClassification(**json.loads(choice.message.content or "{}"))
 
     async def classify(self, post: Post) -> Detection:
         start = time.monotonic()

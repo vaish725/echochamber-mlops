@@ -8,9 +8,9 @@ class Settings(BaseSettings):
     kafka_output_topic: str = "detection-results"
     kafka_consumer_group: str = "misinformation-detectors-group-1"
 
-    llm_provider: str = "claude"
-    llm_model: str = "claude-sonnet-4-6"
-    anthropic_api_key: str = Field(..., description="Anthropic API key — required")
+    llm_provider: str = "openai"
+    llm_model: str = "gpt-4o"
+    openai_api_key: str = Field(..., description="OpenAI API key — required")
 
     prompt_version: str = "v1"
 
