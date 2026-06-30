@@ -6,8 +6,9 @@ Run with: pytest kafka-ingestion/tests/ -v
 import json
 import time
 import uuid
+
 import pytest
-from kafka import KafkaProducer, KafkaConsumer
+from kafka import KafkaConsumer, KafkaProducer
 from kafka.errors import NoBrokersAvailable
 
 BOOTSTRAP_SERVERS = ["localhost:9092"]

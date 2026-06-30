@@ -7,6 +7,7 @@ from aiokafka import AIOKafkaConsumer
 
 from app.config import Settings
 from app.detector import MisinformationDetector
+from app.experiment_tracker import ExperimentTracker
 from app.metrics import detections_by_label_total, errors_total, posts_processed_total
 from app.publisher import DetectionPublisher
 from app.schemas import Post
@@ -18,11 +19,18 @@ _background_tasks: set[asyncio.Task[None]] = set()
 
 
 class KafkaDetectionConsumer:
-    def __init__(self, settings: Settings, detector: MisinformationDetector, publisher: DetectionPublisher) -> None:
+    def __init__(
+        self,
+        settings: Settings,
+        detector: MisinformationDetector,
+        publisher: DetectionPublisher,
+        tracker: ExperimentTracker,
+    ) -> None:
         self._settings = settings
         self._detector = detector
         self._publisher = publisher
-        self._consumer: Optional[AIOKafkaConsumer] = None  # type: ignore[type-arg]
+        self._tracker = tracker
+        self._consumer: Optional[AIOKafkaConsumer] = None
         self._loop_task: Optional[asyncio.Task[None]] = None
 
     async def start(self) -> None:
@@ -70,6 +78,9 @@ class KafkaDetectionConsumer:
             await self._publisher.publish(detection)
             posts_processed_total.inc()
             detections_by_label_total.labels(label=detection.label.value).inc()
+            self._tracker.record(detection)
+            if self._tracker.should_flush():
+                self._tracker.flush()
             logger.info(
                 "Post classified",
                 extra={

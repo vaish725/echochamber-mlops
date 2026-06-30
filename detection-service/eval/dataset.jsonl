@@ -1,0 +1,15 @@
+{"post_text": "BREAKING: Drinking bleach cures COVID-19, doctors are hiding this from you!", "true_label": "MISINFORMATION"}
+{"post_text": "5G towers are secretly controlling your thoughts through radio waves.", "true_label": "MISINFORMATION"}
+{"post_text": "The moon landing in 1969 was completely staged in a Hollywood studio.", "true_label": "MISINFORMATION"}
+{"post_text": "I read somewhere that vaccines might be linked to autism, not 100% sure though.", "true_label": "LIKELY_MISINFORMATION"}
+{"post_text": "Heard that this new supplement melts fat overnight, my cousin swears by it.", "true_label": "LIKELY_MISINFORMATION"}
+{"post_text": "Someone told me the election results in that county were rigged, seems suspicious.", "true_label": "LIKELY_MISINFORMATION"}
+{"post_text": "Not sure if this is true but apparently eating after 8pm makes you gain weight faster.", "true_label": "UNCERTAIN"}
+{"post_text": "Is it true that cracking your knuckles causes arthritis? My grandma always said so.", "true_label": "UNCERTAIN"}
+{"post_text": "Saw a post claiming goldfish only have a 3-second memory, can anyone confirm?", "true_label": "UNCERTAIN"}
+{"post_text": "Studies suggest regular exercise may help reduce the risk of heart disease over time.", "true_label": "LIKELY_CREDIBLE"}
+{"post_text": "According to a recent survey, most respondents prefer remote work over commuting.", "true_label": "LIKELY_CREDIBLE"}
+{"post_text": "Local news reports the new bridge construction is expected to finish by next spring.", "true_label": "LIKELY_CREDIBLE"}
+{"post_text": "Water boils at 100 degrees Celsius at standard atmospheric pressure.", "true_label": "CREDIBLE"}
+{"post_text": "The Earth completes one full orbit around the Sun approximately every 365.25 days.", "true_label": "CREDIBLE"}
+{"post_text": "The human body has 206 bones in adulthood, according to standard anatomy textbooks.", "true_label": "CREDIBLE"}

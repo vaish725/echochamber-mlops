@@ -1,10 +1,9 @@
-import uuid
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-
 from app.parquet_archiver import ParquetArchiver
 from app.post_sink import PostSink
+
 from tests.conftest import RAW_POST
 
 

@@ -2,11 +2,11 @@ import uuid
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-
 from app.detection_sink import DetectionSink
 from app.models import Post
 from app.parquet_archiver import ParquetArchiver
-from tests.conftest import RAW_DETECTION, RAW_POST
+
+from tests.conftest import RAW_DETECTION
 
 
 @pytest.fixture
@@ -40,7 +40,9 @@ def detection_sink(settings, mock_archiver):
     return DetectionSink(settings, engine, mock_archiver)
 
 
-async def test_handle_writes_detection_when_post_exists(detection_sink, mock_archiver, mock_session_with_post):
+async def test_handle_writes_detection_when_post_exists(
+    detection_sink, mock_archiver, mock_session_with_post
+):
     with patch.object(detection_sink, "_session_factory") as mock_factory:
         mock_factory.return_value.__aenter__ = AsyncMock(return_value=mock_session_with_post)
         mock_factory.return_value.__aexit__ = AsyncMock(return_value=False)
@@ -64,7 +66,9 @@ async def test_handle_queues_retry_when_post_missing(detection_sink, mock_sessio
         assert count == 1
 
 
-async def test_handle_dead_letters_after_max_retries(detection_sink, mock_archiver, mock_session_no_post):
+async def test_handle_dead_letters_after_max_retries(
+    detection_sink, mock_archiver, mock_session_no_post
+):
     from app.detection_sink import _MAX_RETRIES
     with patch.object(detection_sink, "_session_factory") as mock_factory:
         mock_factory.return_value.__aenter__ = AsyncMock(return_value=mock_session_no_post)
@@ -77,7 +81,6 @@ async def test_handle_dead_letters_after_max_retries(detection_sink, mock_archiv
 
 
 def test_detection_id_is_deterministic():
-    import uuid
     from app.schemas import DetectionMessage
 
     msg = DetectionMessage(**RAW_DETECTION)

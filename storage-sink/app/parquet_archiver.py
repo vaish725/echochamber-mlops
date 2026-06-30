@@ -52,7 +52,7 @@ class ParquetArchiver:
         safe = [{k: str(v) for k, v in r.items()} for r in records]
         table = pa.Table.from_pylist(safe)
         buf = io.BytesIO()
-        pq.write_table(table, buf)
+        pq.write_table(table, buf)  # type: ignore[no-untyped-call]  # pyarrow ships no stubs
         try:
             await asyncio.to_thread(
                 self._s3.put_object,

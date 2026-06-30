@@ -1,7 +1,6 @@
 import pytest
-from pydantic import ValidationError
-
 from app.schemas import Detection, LLMClassification, MisinformationLabel, Post
+from pydantic import ValidationError
 
 
 def test_post_valid():

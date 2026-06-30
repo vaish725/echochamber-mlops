@@ -1,8 +1,8 @@
 from unittest.mock import MagicMock, patch
 
 import pytest
-
 from app.parquet_archiver import ParquetArchiver
+
 from tests.conftest import RAW_DETECTION, RAW_POST
 
 

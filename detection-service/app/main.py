@@ -8,6 +8,7 @@ from prometheus_client import make_asgi_app
 from app.config import get_settings
 from app.consumer import KafkaDetectionConsumer
 from app.detector import MisinformationDetector
+from app.experiment_tracker import ExperimentTracker
 from app.logging_config import configure_logging
 from app.publisher import DetectionPublisher
 
@@ -23,8 +24,9 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     settings = get_settings()
     detector = MisinformationDetector(settings)
     publisher = DetectionPublisher(settings)
+    tracker = ExperimentTracker(settings)
     await publisher.start()
-    _kafka_consumer = KafkaDetectionConsumer(settings, detector, publisher)
+    _kafka_consumer = KafkaDetectionConsumer(settings, detector, publisher, tracker)
     await _kafka_consumer.start()
     logger.info("Detection service ready")
     try:

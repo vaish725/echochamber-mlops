@@ -48,7 +48,10 @@ class MisinformationDetector:
         )
         choice = response.choices[0]
         if choice.finish_reason == "content_filter":
-            logger.warning("OpenAI content filter triggered — returning UNCERTAIN", extra={"post_snippet": post_text[:80]})
+            logger.warning(
+                "OpenAI content filter triggered — returning UNCERTAIN",
+                extra={"post_snippet": post_text[:80]},
+            )
             return LLMClassification(
                 label=MisinformationLabel.UNCERTAIN,
                 confidence=0.0,

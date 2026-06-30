@@ -2,12 +2,13 @@ import json
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-
 from app.detector import MisinformationDetector
 from app.schemas import MisinformationLabel, Post
 
 
-def _make_openai_response(label: str, confidence: float = 0.9, reasoning: str = "test") -> MagicMock:
+def _make_openai_response(
+    label: str, confidence: float = 0.9, reasoning: str = "test"
+) -> MagicMock:
     content = json.dumps({"label": label, "confidence": confidence, "reasoning": reasoning})
     message = MagicMock()
     message.content = content
@@ -48,7 +49,8 @@ async def test_classify_returns_detection(detector, settings):
 
 
 async def test_classify_all_five_labels(detector):
-    for label_str in ["MISINFORMATION", "LIKELY_MISINFORMATION", "UNCERTAIN", "LIKELY_CREDIBLE", "CREDIBLE"]:
+    labels = ["MISINFORMATION", "LIKELY_MISINFORMATION", "UNCERTAIN", "LIKELY_CREDIBLE", "CREDIBLE"]
+    for label_str in labels:
         detector._client.chat.completions.create = AsyncMock(
             return_value=_make_openai_response(label_str)
         )

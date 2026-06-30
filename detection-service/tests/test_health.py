@@ -1,9 +1,7 @@
 from unittest.mock import MagicMock, patch
 
-import pytest
-from httpx import ASGITransport, AsyncClient
-
 from app.main import app
+from httpx import ASGITransport, AsyncClient
 
 
 async def test_health_ok_when_consumer_alive():

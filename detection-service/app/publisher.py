@@ -20,7 +20,10 @@ class DetectionPublisher:
             value_serializer=lambda v: json.dumps(v).encode("utf-8"),
         )
         await self._producer.start()
-        logger.info("Detection publisher started", extra={"topic": self._settings.kafka_output_topic})
+        logger.info(
+            "Detection publisher started",
+            extra={"topic": self._settings.kafka_output_topic},
+        )
 
     async def stop(self) -> None:
         if self._producer:

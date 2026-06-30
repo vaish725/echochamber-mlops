@@ -14,8 +14,12 @@ class Settings(BaseSettings):
 
     prompt_version: str = "v1"
 
+    mlflow_tracking_uri: str = "http://localhost:5000"
+    mlflow_experiment_name: str = "misinformation-detector"
+    mlflow_flush_interval_seconds: float = 30.0
+
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
 
 
 def get_settings() -> Settings:
-    return Settings()
+    return Settings()  # type: ignore[call-arg]  # required fields come from env/.env

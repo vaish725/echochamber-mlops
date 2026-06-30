@@ -35,7 +35,10 @@ class DetectionSink:
             value_deserializer=lambda b: json.loads(b.decode("utf-8")),
         )
         await consumer.start()
-        logger.info("Detection sink consumer started", extra={"topic": self._settings.kafka_detections_topic})
+        logger.info(
+            "Detection sink consumer started",
+            extra={"topic": self._settings.kafka_detections_topic},
+        )
         retry_task = asyncio.create_task(self._drain_retry_queue(), name="detection-retry-drain")
         try:
             async for message in consumer:
@@ -62,7 +65,11 @@ class DetectionSink:
                         wait = min(_RETRY_BASE_SECONDS ** retry_count, 30)
                         logger.warning(
                             "Post not yet in DB — queuing retry",
-                            extra={"post_id": str(msg.post_id), "retry": retry_count, "wait_s": wait},
+                            extra={
+                                "post_id": str(msg.post_id),
+                                "retry": retry_count,
+                                "wait_s": wait,
+                            },
                         )
                         await self._retry_queue.put((raw, retry_count + 1))
                     else:
@@ -92,7 +99,11 @@ class DetectionSink:
             self._archiver.buffer(self._settings.kafka_detections_topic, raw)
             logger.info(
                 "Detection stored",
-                extra={"detection_id": str(detection_id), "post_id": str(msg.post_id), "label": msg.label},
+                extra={
+                    "detection_id": str(detection_id),
+                    "post_id": str(msg.post_id),
+                    "label": msg.label,
+                },
             )
         except Exception:
             logger.exception("Failed to store detection", extra={"raw_preview": str(raw)[:200]})

@@ -1,5 +1,4 @@
 import pytest
-
 from app.config import Settings
 from app.schemas import Detection, MisinformationLabel
 
@@ -15,6 +14,9 @@ def settings() -> Settings:
         llm_model="gpt-4o",
         openai_api_key="test-key-not-real",
         prompt_version="v1",
+        mlflow_tracking_uri="http://localhost:5000",
+        mlflow_experiment_name="test-experiment",
+        mlflow_flush_interval_seconds=30.0,
     )
 
 

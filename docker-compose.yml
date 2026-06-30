@@ -35,6 +35,7 @@ services:
       POSTGRES_PASSWORD: changeme
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ./infra/postgres-init:/docker-entrypoint-initdb.d
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U echochamber"]
       interval: 10s
@@ -67,8 +68,27 @@ services:
       /bin/sh -c "
       mc alias set local http://minio:9000 minioadmin minioadmin &&
       mc mb --ignore-existing local/echochamber-raw &&
-      echo 'Bucket ready'
+      mc mb --ignore-existing local/echochamber-mlflow &&
+      echo 'Buckets ready'
       "
+
+  mlflow:
+    build:
+      context: ./mlflow
+    ports:
+      - "5000:5000"
+    environment:
+      BACKEND_STORE_URI: postgresql://echochamber:changeme@postgres:5432/mlflow
+      ARTIFACT_ROOT: s3://echochamber-mlflow/
+      AWS_ACCESS_KEY_ID: minioadmin
+      AWS_SECRET_ACCESS_KEY: minioadmin
+      MLFLOW_S3_ENDPOINT_URL: http://minio:9000
+    depends_on:
+      postgres:
+        condition: service_healthy
+      minio-init:
+        condition: service_completed_successfully
+    restart: on-failure
 
   producer:
     build:
@@ -92,8 +112,11 @@ services:
       LLM_PROVIDER: openai
       LLM_MODEL: gpt-4o
       OPENAI_API_KEY: ${OPENAI_API_KEY}
+      MLFLOW_TRACKING_URI: http://mlflow:5000
+      MLFLOW_EXPERIMENT_NAME: misinformation-detector
     depends_on:
       - kafka
+      - mlflow
     restart: on-failure
     healthcheck:
       test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]

@@ -1,0 +1,47 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  kafka-ingestion:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install -r kafka-ingestion/requirements.txt -r requirements-dev.txt
+      - run: ruff check kafka-ingestion
+      - run: pytest kafka-ingestion/tests -v
+
+  detection-service:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install -r detection-service/requirements.txt -r requirements-dev.txt
+      - run: ruff check detection-service
+      - run: mypy app
+        working-directory: detection-service
+      - run: pytest tests -v
+        working-directory: detection-service
+
+  storage-sink:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install -r storage-sink/requirements.txt -r requirements-dev.txt
+      - run: ruff check storage-sink
+      - run: mypy app
+        working-directory: storage-sink
+      - run: pytest tests -v
+        working-directory: storage-sink

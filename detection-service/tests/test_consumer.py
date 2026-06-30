@@ -1,8 +1,6 @@
-import asyncio
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-
 from app.consumer import KafkaDetectionConsumer
 from app.schemas import MisinformationLabel
 
@@ -22,11 +20,20 @@ def mock_publisher():
 
 
 @pytest.fixture
-def kafka_consumer(settings, mock_detector, mock_publisher):
-    return KafkaDetectionConsumer(settings, mock_detector, mock_publisher)
+def mock_tracker():
+    tracker = MagicMock()
+    tracker.should_flush.return_value = False
+    return tracker
 
 
-async def test_handle_message_calls_detector_and_publishes(kafka_consumer, mock_detector, mock_publisher):
+@pytest.fixture
+def kafka_consumer(settings, mock_detector, mock_publisher, mock_tracker):
+    return KafkaDetectionConsumer(settings, mock_detector, mock_publisher, mock_tracker)
+
+
+async def test_handle_message_calls_detector_and_publishes(
+    kafka_consumer, mock_detector, mock_publisher
+):
     raw = {
         "user_id": "u1",
         "username": "alice",
@@ -42,10 +49,40 @@ async def test_handle_message_calls_detector_and_publishes(kafka_consumer, mock_
     assert published.label == MisinformationLabel.MISINFORMATION
 
 
-async def test_handle_message_does_not_raise_on_classifier_error(settings, mock_publisher):
+async def test_handle_message_records_to_tracker(kafka_consumer, mock_tracker):
+    raw = {
+        "user_id": "u1",
+        "username": "alice",
+        "post_text": "Vaccines cause autism",
+        "created_at": "2026-01-01T00:00:00Z",
+        "location": "NYC, USA",
+    }
+    await kafka_consumer._handle_message(raw)
+
+    mock_tracker.record.assert_called_once()
+    mock_tracker.should_flush.assert_called_once()
+
+
+async def test_handle_message_flushes_tracker_when_due(kafka_consumer, mock_tracker):
+    mock_tracker.should_flush.return_value = True
+    raw = {
+        "user_id": "u1",
+        "username": "alice",
+        "post_text": "Vaccines cause autism",
+        "created_at": "2026-01-01T00:00:00Z",
+        "location": "NYC, USA",
+    }
+    await kafka_consumer._handle_message(raw)
+
+    mock_tracker.flush.assert_called_once()
+
+
+async def test_handle_message_does_not_raise_on_classifier_error(
+    settings, mock_publisher, mock_tracker
+):
     failing_detector = MagicMock()
     failing_detector.classify = AsyncMock(side_effect=Exception("LLM down"))
-    consumer = KafkaDetectionConsumer(settings, failing_detector, mock_publisher)
+    consumer = KafkaDetectionConsumer(settings, failing_detector, mock_publisher, mock_tracker)
 
     # Should swallow the exception and not propagate
     await consumer._handle_message({
