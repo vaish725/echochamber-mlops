@@ -1,0 +1,103 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: detection-service
+  namespace: echochamber
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: detection-service
+  template:
+    metadata:
+      labels:
+        app: detection-service
+    spec:
+      enableServiceLinks: false
+      containers:
+        - name: detection-service
+          image: echochamber/detection-service:local
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8000
+          env:
+            - name: KAFKA_BOOTSTRAP_SERVERS
+              valueFrom:
+                configMapKeyRef:
+                  name: echochamber-config
+                  key: KAFKA_BOOTSTRAP_SERVERS
+            - name: KAFKA_INPUT_TOPIC
+              valueFrom:
+                configMapKeyRef:
+                  name: echochamber-config
+                  key: KAFKA_INPUT_TOPIC
+            - name: KAFKA_OUTPUT_TOPIC
+              valueFrom:
+                configMapKeyRef:
+                  name: echochamber-config
+                  key: KAFKA_OUTPUT_TOPIC
+            - name: KAFKA_CONSUMER_GROUP
+              valueFrom:
+                configMapKeyRef:
+                  name: echochamber-config
+                  key: KAFKA_CONSUMER_GROUP
+            - name: LLM_PROVIDER
+              valueFrom:
+                configMapKeyRef:
+                  name: echochamber-config
+                  key: LLM_PROVIDER
+            - name: LLM_MODEL
+              valueFrom:
+                configMapKeyRef:
+                  name: echochamber-config
+                  key: LLM_MODEL
+            - name: OPENAI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: echochamber-secrets
+                  key: OPENAI_API_KEY
+            - name: MLFLOW_TRACKING_URI
+              valueFrom:
+                configMapKeyRef:
+                  name: echochamber-config
+                  key: MLFLOW_TRACKING_URI
+            - name: MLFLOW_EXPERIMENT_NAME
+              valueFrom:
+                configMapKeyRef:
+                  name: echochamber-config
+                  key: MLFLOW_EXPERIMENT_NAME
+          resources:
+            requests:
+              cpu: 500m
+              memory: 512Mi
+            limits:
+              cpu: "2"
+              memory: 2Gi
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 15
+            periodSeconds: 30
+            timeoutSeconds: 10
+            failureThreshold: 3
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: detection-service
+  namespace: echochamber
+spec:
+  selector:
+    app: detection-service
+  ports:
+    - port: 8000
+      targetPort: 8000

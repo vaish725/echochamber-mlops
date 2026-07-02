@@ -30,7 +30,9 @@ async def main() -> None:
     settings = get_settings()
 
     logger.info("Running database migrations")
-    run_migrations(settings.database_url)
+    # run_migrations (via alembic's env.py) calls asyncio.run() internally, which
+    # can't nest inside this already-running loop — run it in a worker thread instead.
+    await asyncio.to_thread(run_migrations, settings.database_url)
 
     engine = create_async_engine(settings.database_url, echo=False)
     archiver = ParquetArchiver(settings)

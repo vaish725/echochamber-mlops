@@ -1,0 +1,89 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mlflow
+  namespace: echochamber
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mlflow
+  template:
+    metadata:
+      labels:
+        app: mlflow
+    spec:
+      enableServiceLinks: false
+      initContainers:
+        - name: wait-for-postgres
+          image: busybox:1.36
+          command: ["sh", "-c", "until nc -z postgres 5432; do sleep 2; done"]
+        - name: wait-for-minio-bucket
+          image: minio/mc:latest
+          env:
+            - name: AWS_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: echochamber-secrets
+                  key: AWS_ACCESS_KEY_ID
+            - name: AWS_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: echochamber-secrets
+                  key: AWS_SECRET_ACCESS_KEY
+          command:
+            - /bin/sh
+            - -c
+            - >
+              until mc alias set local http://minio:9000 "$AWS_ACCESS_KEY_ID" "$AWS_SECRET_ACCESS_KEY" &&
+              mc ls local/echochamber-mlflow >/dev/null 2>&1; do sleep 2; done
+      containers:
+        - name: mlflow
+          image: echochamber/mlflow:local
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 5000
+          env:
+            - name: BACKEND_STORE_URI
+              valueFrom:
+                secretKeyRef:
+                  name: echochamber-secrets
+                  key: MLFLOW_BACKEND_STORE_URI
+            - name: ARTIFACT_ROOT
+              valueFrom:
+                secretKeyRef:
+                  name: echochamber-secrets
+                  key: MLFLOW_ARTIFACT_ROOT
+            - name: AWS_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: echochamber-secrets
+                  key: AWS_ACCESS_KEY_ID
+            - name: AWS_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: echochamber-secrets
+                  key: AWS_SECRET_ACCESS_KEY
+            - name: MLFLOW_S3_ENDPOINT_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: echochamber-config
+                  key: MLFLOW_S3_ENDPOINT_URL
+            # mlflow>=2.x rejects requests whose Host header isn't localhost/a private IP
+            # (DNS-rebinding protection); in-cluster clients hit it via the "mlflow" Service
+            # DNS name, and the Ingress hits it via mlflow.echochamber.local, neither of
+            # which match the built-in defaults.
+            - name: MLFLOW_SERVER_ALLOWED_HOSTS
+              value: "mlflow*"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mlflow
+  namespace: echochamber
+spec:
+  selector:
+    app: mlflow
+  ports:
+    - port: 5000
+      targetPort: 5000

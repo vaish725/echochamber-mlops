@@ -1,0 +1,31 @@
+# Requires the Minikube `ingress` addon (`minikube addons enable ingress`).
+# Add these hosts to /etc/hosts pointing at `minikube ip`:
+#   <minikube-ip>  mlflow.echochamber.local detection.echochamber.local
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: echochamber
+  namespace: echochamber
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: mlflow.echochamber.local
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: mlflow
+                port:
+                  number: 5000
+    - host: detection.echochamber.local
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: detection-service
+                port:
+                  number: 8000
