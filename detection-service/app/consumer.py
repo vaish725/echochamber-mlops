@@ -8,7 +8,13 @@ from aiokafka import AIOKafkaConsumer
 from app.config import Settings
 from app.detector import MisinformationDetector
 from app.experiment_tracker import ExperimentTracker
-from app.metrics import detections_by_label_total, errors_total, posts_processed_total
+from app.logging_config import set_trace_id
+from app.metrics import (
+    detections_by_label_total,
+    errors_total,
+    kafka_consumer_lag,
+    posts_processed_total,
+)
 from app.publisher import DetectionPublisher
 from app.schemas import Post
 
@@ -32,6 +38,7 @@ class KafkaDetectionConsumer:
         self._tracker = tracker
         self._consumer: Optional[AIOKafkaConsumer] = None
         self._loop_task: Optional[asyncio.Task[None]] = None
+        self._lag_task: Optional[asyncio.Task[None]] = None
 
     async def start(self) -> None:
         self._consumer = AIOKafkaConsumer(
@@ -44,15 +51,17 @@ class KafkaDetectionConsumer:
         )
         await self._consumer.start()
         self._loop_task = asyncio.create_task(self._consume_loop(), name="kafka-consume-loop")
+        self._lag_task = asyncio.create_task(self._lag_loop(), name="kafka-lag-loop")
         logger.info("Kafka consumer started", extra={"topic": self._settings.kafka_input_topic})
 
     async def stop(self) -> None:
-        if self._loop_task and not self._loop_task.done():
-            self._loop_task.cancel()
-            try:
-                await self._loop_task
-            except asyncio.CancelledError:
-                pass
+        for task in (self._loop_task, self._lag_task):
+            if task and not task.done():
+                task.cancel()
+                try:
+                    await task
+                except asyncio.CancelledError:
+                    pass
         if self._consumer:
             await self._consumer.stop()
         logger.info("Kafka consumer stopped")
@@ -71,9 +80,24 @@ class KafkaDetectionConsumer:
             _background_tasks.add(task)
             task.add_done_callback(_background_tasks.discard)
 
+    async def _lag_loop(self) -> None:
+        assert self._consumer is not None
+        while True:
+            await asyncio.sleep(5)
+            try:
+                for tp in self._consumer.assignment():
+                    hw = self._consumer.highwater(tp)
+                    if hw is None:
+                        continue
+                    pos = self._consumer.position(tp)
+                    kafka_consumer_lag.labels(partition=str(tp.partition)).set(max(0, hw - pos))
+            except Exception:
+                pass
+
     async def _handle_message(self, raw: dict) -> None:  # type: ignore[type-arg]
         try:
             post = Post(**raw)
+            set_trace_id(post.user_id)
             detection = await self._detector.classify(post)
             await self._publisher.publish(detection)
             posts_processed_total.inc()

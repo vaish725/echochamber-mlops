@@ -8,6 +8,7 @@ from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncEngine, async_sessionmaker
 
 from app.config import Settings
+from app.logging_config import set_trace_id
 from app.models import Detection, Post
 from app.parquet_archiver import ParquetArchiver
 from app.schemas import DetectionMessage
@@ -51,6 +52,7 @@ class DetectionSink:
     async def _handle(self, raw: dict, retry_count: int) -> None:  # type: ignore[type-arg]
         try:
             msg = DetectionMessage(**raw)
+            set_trace_id(str(msg.post_id))
             # Deterministic detection_id for idempotency (FR-3.6)
             detection_id = uuid.uuid5(
                 uuid.NAMESPACE_OID,

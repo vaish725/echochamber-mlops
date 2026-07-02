@@ -1,0 +1,202 @@
+{
+  "annotations": { "list": [] },
+  "description": "EchoChamber MLOps — real-time misinformation detection pipeline overview",
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [],
+  "panels": [
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": { "lineWidth": 2 },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "id": 1,
+      "options": {
+        "legend": { "calcs": ["mean", "last"], "displayMode": "table", "placement": "bottom" },
+        "tooltip": { "mode": "multi" }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "rate(echochamber_posts_processed_total[1m]) * 60",
+          "legendFormat": "posts/min",
+          "refId": "A"
+        }
+      ],
+      "title": "Posts Ingested / min",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": { "lineWidth": 2 },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "id": 2,
+      "options": {
+        "legend": { "calcs": ["mean", "last"], "displayMode": "table", "placement": "bottom" },
+        "tooltip": { "mode": "multi" }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "rate(echochamber_detections_by_label_total[1m]) * 60",
+          "legendFormat": "{{label}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Detections / min by Label",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": { "lineWidth": 2 },
+          "unit": "percent",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 20 },
+              { "color": "red", "value": 30 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 8 },
+      "id": 3,
+      "options": {
+        "legend": { "calcs": ["mean", "last"], "displayMode": "table", "placement": "bottom" },
+        "tooltip": { "mode": "multi" }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "sum(rate(echochamber_detections_by_label_total{label=\"MISINFORMATION\"}[5m])) / sum(rate(echochamber_posts_processed_total[5m])) * 100",
+          "legendFormat": "misinfo %",
+          "refId": "A"
+        }
+      ],
+      "title": "Misinformation Rate (%)",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": { "lineWidth": 2 },
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 16, "x": 8, "y": 8 },
+      "id": 4,
+      "options": {
+        "legend": { "calcs": ["mean", "max"], "displayMode": "table", "placement": "bottom" },
+        "tooltip": { "mode": "multi" }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "histogram_quantile(0.50, sum(rate(echochamber_llm_request_duration_seconds_bucket[5m])) by (le))",
+          "legendFormat": "p50",
+          "refId": "A"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "histogram_quantile(0.95, sum(rate(echochamber_llm_request_duration_seconds_bucket[5m])) by (le))",
+          "legendFormat": "p95",
+          "refId": "B"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "histogram_quantile(0.99, sum(rate(echochamber_llm_request_duration_seconds_bucket[5m])) by (le))",
+          "legendFormat": "p99",
+          "refId": "C"
+        }
+      ],
+      "title": "LLM API Call Latency (p50 / p95 / p99)",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": { "lineWidth": 2 },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 16 },
+      "id": 5,
+      "options": {
+        "legend": { "calcs": ["mean", "max"], "displayMode": "table", "placement": "bottom" },
+        "tooltip": { "mode": "multi" }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "echochamber_kafka_consumer_lag",
+          "legendFormat": "partition {{partition}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Kafka Consumer Lag",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": { "lineWidth": 2 },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 16 },
+      "id": 6,
+      "options": {
+        "legend": { "calcs": ["mean", "max"], "displayMode": "table", "placement": "bottom" },
+        "tooltip": { "mode": "multi" }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "rate(echochamber_errors_total[1m])",
+          "legendFormat": "{{error_type}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Error Rate",
+      "type": "timeseries"
+    }
+  ],
+  "schemaVersion": 39,
+  "tags": ["echochamber"],
+  "templating": { "list": [] },
+  "time": { "from": "now-1h", "to": "now" },
+  "timepicker": {},
+  "timezone": "browser",
+  "title": "EchoChamber Overview",
+  "uid": "echochamber-overview",
+  "version": 1
+}

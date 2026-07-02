@@ -1,8 +1,15 @@
+import contextvars
 import json
 import logging
 import sys
 from datetime import datetime, timezone
 from typing import Any
+
+_trace_id: contextvars.ContextVar[str] = contextvars.ContextVar("trace_id", default="")
+
+
+def set_trace_id(value: str) -> None:
+    _trace_id.set(value)
 
 
 class JsonFormatter(logging.Formatter):
@@ -13,6 +20,7 @@ class JsonFormatter(logging.Formatter):
             "timestamp": datetime.now(timezone.utc).isoformat(),
             "level": record.levelname,
             "service": self.SERVICE,
+            "trace_id": _trace_id.get(),
             "logger": record.name,
             "message": record.getMessage(),
         }

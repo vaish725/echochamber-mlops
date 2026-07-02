@@ -1,0 +1,143 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: promtail
+  namespace: echochamber
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: promtail
+rules:
+  - apiGroups: [""]
+    resources: [nodes, nodes/proxy, services, endpoints, pods]
+    verbs: [get, watch, list]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: promtail
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: promtail
+subjects:
+  - kind: ServiceAccount
+    name: promtail
+    namespace: echochamber
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: promtail-config
+  namespace: echochamber
+data:
+  promtail.yaml: |
+    server:
+      http_listen_port: 9080
+      grpc_listen_port: 0
+
+    positions:
+      filename: /tmp/positions.yaml
+
+    clients:
+      - url: http://loki.echochamber.svc.cluster.local:3100/loki/api/v1/push
+
+    scrape_configs:
+      - job_name: kubernetes-pods
+        kubernetes_sd_configs:
+          - role: pod
+
+        relabel_configs:
+          # Only scrape pods in our namespace
+          - source_labels: [__meta_kubernetes_namespace]
+            action: keep
+            regex: echochamber
+
+          # Use the pod's app label as the service label in Loki
+          - source_labels: [__meta_kubernetes_pod_label_app]
+            action: replace
+            target_label: service
+
+          - source_labels: [__meta_kubernetes_namespace]
+            action: replace
+            target_label: namespace
+
+          - source_labels: [__meta_kubernetes_pod_name]
+            action: replace
+            target_label: pod
+
+          - source_labels: [__meta_kubernetes_pod_container_name]
+            action: replace
+            target_label: container
+
+          # Build the log file path from pod UID and container name
+          - source_labels: [__meta_kubernetes_pod_uid, __meta_kubernetes_pod_container_name]
+            separator: /
+            target_label: __path__
+            replacement: /var/log/pods/*$1/*.log
+
+        pipeline_stages:
+          # Parse the JSON log line
+          - json:
+              expressions:
+                level: level
+                service: service
+                trace_id: trace_id
+                message: message
+
+          # Promote level to a Loki label for fast filtering
+          - labels:
+              level:
+
+          # Use the parsed message field as the log line text
+          - output:
+              source: message
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: promtail
+  namespace: echochamber
+spec:
+  selector:
+    matchLabels:
+      app: promtail
+  template:
+    metadata:
+      labels:
+        app: promtail
+    spec:
+      serviceAccountName: promtail
+      enableServiceLinks: false
+      tolerations:
+        - key: node-role.kubernetes.io/master
+          operator: Exists
+          effect: NoSchedule
+      containers:
+        - name: promtail
+          image: grafana/promtail:2.9.3
+          args:
+            - "-config.file=/etc/promtail/promtail.yaml"
+          ports:
+            - containerPort: 9080
+              name: http
+          volumeMounts:
+            - name: config
+              mountPath: /etc/promtail
+            - name: varlogpods
+              mountPath: /var/log/pods
+              readOnly: true
+            - name: varlibdockercontainers
+              mountPath: /var/lib/docker/containers
+              readOnly: true
+      volumes:
+        - name: config
+          configMap:
+            name: promtail-config
+        - name: varlogpods
+          hostPath:
+            path: /var/log/pods
+        - name: varlibdockercontainers
+          hostPath:
+            path: /var/lib/docker/containers

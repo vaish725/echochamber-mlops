@@ -1,0 +1,323 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-datasources
+  namespace: echochamber
+data:
+  datasources.yaml: |
+    apiVersion: 1
+    datasources:
+      - name: Prometheus
+        type: prometheus
+        uid: prometheus
+        url: http://prometheus:9090
+        isDefault: true
+        jsonData:
+          timeInterval: 15s
+
+      - name: Loki
+        type: loki
+        uid: loki
+        url: http://loki:3100
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboard-provider
+  namespace: echochamber
+data:
+  dashboards.yaml: |
+    apiVersion: 1
+    providers:
+      - name: default
+        type: file
+        disableDeletion: true
+        updateIntervalSeconds: 30
+        options:
+          path: /var/lib/grafana/dashboards
+---
+# Alert rules, contact points, and notification policy.
+# Grafana unified alerting provisioning — see /etc/grafana/provisioning/alerting/.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-alerting
+  namespace: echochamber
+data:
+  echochamber-alerts.yaml: |
+    apiVersion: 1
+
+    # Dummy contact point (no real notification destination for local dev)
+    contactPoints:
+      - orgId: 1
+        name: null-receiver
+        receivers:
+          - uid: null-receiver
+            type: webhook
+            settings:
+              url: http://localhost:9999
+            disableResolveMessage: false
+
+    policies:
+      - orgId: 1
+        receiver: null-receiver
+
+    groups:
+      - orgId: 1
+        name: echochamber-alerts
+        folder: EchoChamber
+        interval: 1m
+        rules:
+          - uid: misinfo-rate-alert
+            title: High Misinformation Rate
+            condition: C
+            data:
+              - refId: A
+                relativeTimeRange:
+                  from: 300
+                  to: 0
+                datasourceUid: prometheus
+                model:
+                  datasource:
+                    type: prometheus
+                    uid: prometheus
+                  expr: >-
+                    sum(rate(echochamber_detections_by_label_total{label="MISINFORMATION"}[5m]))
+                    / sum(rate(echochamber_posts_processed_total[5m])) * 100
+                  instant: true
+                  refId: A
+              - refId: C
+                relativeTimeRange:
+                  from: 0
+                  to: 0
+                datasourceUid: __expr__
+                model:
+                  type: threshold
+                  refId: C
+                  expression: A
+                  conditions:
+                    - evaluator:
+                        params: [30]
+                        type: gt
+                      operator:
+                        type: and
+                      query:
+                        params: [A]
+                      reducer:
+                        type: last
+            noDataState: NoData
+            execErrState: Alerting
+            for: 5m
+            annotations:
+              summary: "Misinformation rate above 30% for 5 minutes"
+            labels:
+              severity: warning
+
+          - uid: kafka-lag-alert
+            title: High Kafka Consumer Lag
+            condition: C
+            data:
+              - refId: A
+                relativeTimeRange:
+                  from: 120
+                  to: 0
+                datasourceUid: prometheus
+                model:
+                  datasource:
+                    type: prometheus
+                    uid: prometheus
+                  expr: sum(echochamber_kafka_consumer_lag)
+                  instant: true
+                  refId: A
+              - refId: C
+                relativeTimeRange:
+                  from: 0
+                  to: 0
+                datasourceUid: __expr__
+                model:
+                  type: threshold
+                  refId: C
+                  expression: A
+                  conditions:
+                    - evaluator:
+                        params: [1000]
+                        type: gt
+                      operator:
+                        type: and
+                      query:
+                        params: [A]
+                      reducer:
+                        type: last
+            noDataState: NoData
+            execErrState: Alerting
+            for: 1m
+            annotations:
+              summary: "Kafka consumer lag above 1000 messages"
+            labels:
+              severity: warning
+
+          - uid: error-rate-alert
+            title: High Error Rate
+            condition: C
+            data:
+              - refId: A
+                relativeTimeRange:
+                  from: 120
+                  to: 0
+                datasourceUid: prometheus
+                model:
+                  datasource:
+                    type: prometheus
+                    uid: prometheus
+                  expr: >-
+                    sum(rate(echochamber_errors_total[2m]))
+                    / sum(rate(echochamber_posts_processed_total[2m])) * 100
+                  instant: true
+                  refId: A
+              - refId: C
+                relativeTimeRange:
+                  from: 0
+                  to: 0
+                datasourceUid: __expr__
+                model:
+                  type: threshold
+                  refId: C
+                  expression: A
+                  conditions:
+                    - evaluator:
+                        params: [5]
+                        type: gt
+                      operator:
+                        type: and
+                      query:
+                        params: [A]
+                      reducer:
+                        type: last
+            noDataState: NoData
+            execErrState: Alerting
+            for: 2m
+            annotations:
+              summary: "Error rate above 5% over 2 minutes"
+            labels:
+              severity: critical
+
+          # CrashLoopBackOff alert requires kube-state-metrics:
+          #   kubectl apply -f https://github.com/kubernetes/kube-state-metrics/releases/latest/download/kube-state-metrics.yaml
+          # Then uncomment:
+          # - uid: crashloop-alert
+          #   title: Pod CrashLoopBackOff
+          #   condition: C
+          #   data:
+          #     - refId: A
+          #       datasourceUid: prometheus
+          #       model:
+          #         expr: >-
+          #           kube_pod_container_status_waiting_reason{reason="CrashLoopBackOff",namespace="echochamber"} > 0
+          #         instant: true
+          #         refId: A
+          #     - refId: C
+          #       datasourceUid: __expr__
+          #       model:
+          #         type: threshold
+          #         refId: C
+          #         expression: A
+          #         conditions:
+          #           - evaluator: {params: [0], type: gt}
+          #             operator: {type: and}
+          #             query: {params: [A]}
+          #             reducer: {type: last}
+          #   noDataState: NoData
+          #   execErrState: Alerting
+          #   for: 0s
+          #   annotations:
+          #     summary: "Pod in CrashLoopBackOff in echochamber namespace"
+          #   labels:
+          #     severity: critical
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: grafana-data
+  namespace: echochamber
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 2Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: grafana
+  namespace: echochamber
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: grafana
+  template:
+    metadata:
+      labels:
+        app: grafana
+    spec:
+      enableServiceLinks: false
+      containers:
+        - name: grafana
+          image: grafana/grafana:10.4.2
+          ports:
+            - containerPort: 3000
+          env:
+            - name: GF_SECURITY_ADMIN_PASSWORD
+              value: "echochamber"
+            - name: GF_USERS_ALLOW_SIGN_UP
+              value: "false"
+            - name: GF_ALERTING_ENABLED
+              value: "false"
+            - name: GF_UNIFIED_ALERTING_ENABLED
+              value: "true"
+          volumeMounts:
+            - name: grafana-data
+              mountPath: /var/lib/grafana
+            - name: datasources
+              mountPath: /etc/grafana/provisioning/datasources
+            - name: dashboard-provider
+              mountPath: /etc/grafana/provisioning/dashboards
+            - name: dashboards
+              mountPath: /var/lib/grafana/dashboards
+            - name: alerting
+              mountPath: /etc/grafana/provisioning/alerting
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: 3000
+            initialDelaySeconds: 15
+            periodSeconds: 10
+      volumes:
+        - name: grafana-data
+          persistentVolumeClaim:
+            claimName: grafana-data
+        - name: datasources
+          configMap:
+            name: grafana-datasources
+        - name: dashboard-provider
+          configMap:
+            name: grafana-dashboard-provider
+        - name: dashboards
+          configMap:
+            name: grafana-dashboards
+        - name: alerting
+          configMap:
+            name: grafana-alerting
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: grafana
+  namespace: echochamber
+spec:
+  selector:
+    app: grafana
+  ports:
+    - port: 3000
+      targetPort: 3000

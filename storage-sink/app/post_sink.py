@@ -6,6 +6,7 @@ from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncEngine, async_sessionmaker
 
 from app.config import Settings
+from app.logging_config import set_trace_id
 from app.models import Post
 from app.parquet_archiver import ParquetArchiver
 from app.schemas import PostMessage
@@ -40,6 +41,7 @@ class PostSink:
     async def _handle(self, raw: dict) -> None:  # type: ignore[type-arg]
         try:
             msg = PostMessage(**raw)
+            set_trace_id(str(msg.user_id))
             async with self._session_factory() as session:
                 stmt = (
                     pg_insert(Post)
